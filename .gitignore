@@ -1,0 +1,15 @@
+# node_modules
+node_modules/
+server/node_modules/
+
+# 환경변수
+.env
+server/.env
+
+# Firebase 비공개 키
+server/firebase/serviceAccountKey.json
+
+# 기타
+.DS_Store
+node_modules/
+.env
