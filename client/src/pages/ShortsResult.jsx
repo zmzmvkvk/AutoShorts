@@ -1,18 +1,47 @@
-import React from "react";
-import { useSearchStore } from "../store/useSearchStore";
+import React, { useEffect } from "react";
 import { useShortsQuery } from "../hooks/useShortsQuery";
 import ShortsCard from "../components/ShortsCard";
 import ShortsFilterBar from "../components/ShortsFilterBar";
 import ChannelTab from "../components/ChannelTab";
+import { useSearchStore } from "../store/useSearchStore";
 import { useChannelStore } from "../hooks/useChannelStore";
-import DevToggle from "../components/DevToggle";
+import { useLocation } from "react-router-dom";
 
 export default function ShortsResult() {
-  const { keyword, sort, filter, setSort, setFilter } = useSearchStore();
   const { channels } = useChannelStore();
-  const { data = [], isLoading, error } = useShortsQuery(keyword);
+  const {
+    keyword,
+    sort,
+    filter,
+    shorts,
+    setKeyword,
+    setShorts,
+    setSort,
+    setFilter,
+  } = useSearchStore();
 
-  // 키워드 배열 정제
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const keywordParam = searchParams.get("keyword");
+
+  // ✅ 1. 키워드 상태 없으면 URL에서 초기화
+  useEffect(() => {
+    if (keywordParam && keyword !== keywordParam) {
+      setKeyword(keywordParam);
+    }
+  }, [keywordParam]);
+
+  // ✅ 2. 서버 요청은 keywordParam 있을 때만 실행
+  const { data = [], isLoading, error } = useShortsQuery(keywordParam);
+
+  // ✅ 3. 쿼리 결과가 있으면 상태로 저장
+  useEffect(() => {
+    if (data.length > 0) {
+      setShorts(data);
+    }
+  }, [data]);
+
+  // ✅ 4. 키워드별 필터링 (shorts 활용)
   const keywordList =
     keyword
       ?.split(",")
@@ -24,9 +53,8 @@ export default function ShortsResult() {
       )
       .filter(Boolean) || [];
 
-  // 키워드별 섹션 그룹핑
   const grouped = keywordList.map((key) => {
-    const videos = data
+    const videos = shorts
       .filter((v) => {
         const vKey = v.keyword
           ?.toLowerCase()
@@ -35,11 +63,9 @@ export default function ShortsResult() {
         return vKey === key;
       })
       .filter((item) => {
-        // 관심 채널 필터
         if (channels.length > 0 && !channels.includes(item.channel))
           return false;
 
-        // 조회수 필터
         if (filter === "views20k") return item.views >= 20000;
         if (filter === "views50k") return item.views >= 50000;
         if (filter === "views100k") return item.views >= 100000;
@@ -62,14 +88,17 @@ export default function ShortsResult() {
   return (
     <div className="min-h-screen px-4 py-6 bg-[#0f1e1d] text-white">
       <h1 className="text-2xl text-orange-400 font-bold mb-4">🔍 검색 결과</h1>
+
       <ShortsFilterBar
         sort={sort}
         setSort={setSort}
         filter={filter}
         setFilter={setFilter}
       />
+
       {isLoading && <p>로딩 중...</p>}
       {error && <p className="text-red-500">에러: {error.message}</p>}
+
       {!isLoading &&
         grouped.map((group, index) => (
           <div key={index} className="mb-10">

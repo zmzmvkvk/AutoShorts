@@ -1,33 +1,33 @@
-// useShortsQuery.js
+// src/hooks/useShortsQuery.js
 import { useQuery } from "@tanstack/react-query";
-import { useDevStore } from "../store/useDevStore";
+import axios from "axios";
 
-export const useShortsQuery = (keyword) => {
-  const { devMode } = useDevStore();
-  const isMock = devMode;
-
+export function useShortsQuery(keyword, type = "keyword") {
   return useQuery({
-    queryKey: ["shorts", keyword],
+    queryKey: ["shorts", keyword, type],
     queryFn: async () => {
       if (!keyword) return [];
 
-      if (isMock) {
-        const res = await fetch("/mock/mockData.json");
-        const json = await res.json();
-        return json;
+      const base = "http://localhost:4000/api/shorts";
+
+      const isChannelSearch = type === "channel";
+      const isValidChannelId =
+        typeof keyword === "string" &&
+        keyword.startsWith("UC") &&
+        keyword.length >= 24;
+
+      if (isChannelSearch && !isValidChannelId) {
+        console.warn("❌ 잘못된 채널 ID 요청 차단:", keyword);
+        return [];
       }
 
-      const res = await fetch(
-        `/api/shorts?query=${encodeURIComponent(keyword)}`
-      );
-      const contentType = res.headers.get("content-type");
-      if (!res.ok) throw new Error("서버 응답 실패");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("JSON 아님 (HTML 응답 의심)");
-      }
-      const json = await res.json();
-      return json.data;
+      const endpoint = isChannelSearch
+        ? `${base}/channel?channelId=${encodeURIComponent(keyword)}`
+        : `${base}?query=${encodeURIComponent(keyword)}`;
+
+      const res = await axios.get(endpoint);
+      return res.data.data || [];
     },
-    enabled: !!keyword,
+    enabled: false, // ✅ 여전히 수동 호출
   });
-};
+}

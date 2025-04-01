@@ -1,3 +1,4 @@
+// server/services/youtubeService.js
 const axios = require("axios");
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
@@ -12,6 +13,13 @@ function getDateNDaysAgo(days) {
 
 function isKoreanText(text) {
   return /[가-힣]/.test(text);
+}
+
+function convertISODurationToSeconds(iso) {
+  const match = iso.match(/PT(?:(\d+)M)?(?:(\d+)S)?/);
+  const minutes = parseInt(match?.[1] || "0", 10);
+  const seconds = parseInt(match?.[2] || "0", 10);
+  return minutes * 60 + seconds;
 }
 
 async function fetchYouTubeShorts(query = "기술", maxResults = 5) {
@@ -38,28 +46,30 @@ async function fetchYouTubeShorts(query = "기술", maxResults = 5) {
     },
   });
 
-  const allVideos = detailsData.items.map((item) => {
-    const durationISO = item.contentDetails.duration;
-    const durationSec = convertISODurationToSeconds(durationISO);
-    const title = item.snippet.title;
-    const channel = item.snippet.channelTitle;
-    // const isKorean = isKoreanText(title) || isKoreanText(channel);
-    const isKorean = isKoreanText(title); // ← 채널은 제외
+  return detailsData.items
+    .map((item) => {
+      const duration = convertISODurationToSeconds(
+        item.contentDetails.duration
+      );
+      const title = item.snippet.title;
+      const channel = item.snippet.channelTitle;
+      const channelId = item.snippet.channelId;
+      const isKorean = isKoreanText(title);
 
-    return {
-      id: item.id,
-      title,
-      channel,
-      uploadDate: item.snippet.publishedAt,
-      url: `https://www.youtube.com/watch?v=${item.id}`,
-      thumbnail: item.snippet.thumbnails.medium.url,
-      duration: durationSec,
-      views: parseInt(item.statistics?.viewCount || "0", 10),
-      isKorean,
-    };
-  });
-
-  return allVideos.filter((v) => !v.isKorean);
+      return {
+        id: item.id,
+        title,
+        channel,
+        channelId,
+        uploadDate: item.snippet.publishedAt,
+        url: `https://www.youtube.com/watch?v=${item.id}`,
+        thumbnail: item.snippet.thumbnails.medium.url,
+        duration,
+        views: parseInt(item.statistics?.viewCount || "0", 10),
+        isKorean,
+      };
+    })
+    .filter((v) => !v.isKorean);
 }
 
 async function fetchMultipleKeywords(keywordString, maxPerKeyword = 5) {
@@ -84,11 +94,62 @@ async function fetchMultipleKeywords(keywordString, maxPerKeyword = 5) {
   return allResults;
 }
 
-function convertISODurationToSeconds(iso) {
-  const match = iso.match(/PT(?:(\d+)M)?(?:(\d+)S)?/);
-  const minutes = parseInt(match?.[1] || "0", 10);
-  const seconds = parseInt(match?.[2] || "0", 10);
-  return minutes * 60 + seconds;
+async function fetchByChannelId(channelId, maxResults = 6) {
+  const PLAYLIST_URL = "https://www.googleapis.com/youtube/v3/playlistItems";
+  const uploadsPlaylistId = channelId.replace("UC", "UU");
+
+  const { data } = await axios.get(PLAYLIST_URL, {
+    params: {
+      part: "snippet",
+      playlistId: uploadsPlaylistId,
+      maxResults,
+      key: YOUTUBE_API_KEY,
+    },
+  });
+
+  const videoIds = data.items
+    .map((item) => item.snippet?.resourceId?.videoId)
+    .filter(Boolean)
+    .join(",");
+
+  if (!videoIds) return [];
+
+  const { data: detailsData } = await axios.get(DETAILS_URL, {
+    params: {
+      part: "snippet,contentDetails,statistics",
+      id: videoIds,
+      key: YOUTUBE_API_KEY,
+    },
+  });
+
+  return detailsData.items
+    .map((item) => {
+      const duration = convertISODurationToSeconds(
+        item.contentDetails.duration
+      );
+      const title = item.snippet.title;
+      const channel = item.snippet.channelTitle;
+      const channelId = item.snippet.channelId;
+      const isKorean = isKoreanText(title);
+
+      return {
+        id: item.id,
+        title,
+        channel,
+        channelId,
+        uploadDate: item.snippet.publishedAt,
+        url: `https://www.youtube.com/watch?v=${item.id}`,
+        thumbnail: item.snippet.thumbnails.medium.url,
+        duration,
+        views: parseInt(item.statistics?.viewCount || "0", 10),
+        isKorean,
+        keyword: channelId,
+      };
+    })
+    .filter((v) => !v.isKorean);
 }
 
-module.exports = { fetchMultipleKeywords };
+module.exports = {
+  fetchMultipleKeywords,
+  fetchByChannelId,
+};

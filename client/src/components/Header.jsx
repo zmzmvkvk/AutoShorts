@@ -25,8 +25,7 @@ export default function Header() {
         </Link>
         <nav className="space-x-2">
           {navItem("/", "홈")}
-          {navItem("/shorts", "쇼츠")}
-          {navItem("/channels", "관심 채널")}
+          {navItem("/dashboard", "대시보드")}
         </nav>
       </div>
     </header>
