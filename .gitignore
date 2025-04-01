@@ -4,6 +4,7 @@ server/node_modules/
 
 # 환경변수
 .env
+client/.env
 server/.env
 
 # Firebase 비공개 키

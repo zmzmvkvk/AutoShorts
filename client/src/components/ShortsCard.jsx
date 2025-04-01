@@ -29,6 +29,13 @@ export default function ShortsCard({ video }) {
             🆕 신규
           </span>
         )}
+        {video.platform && (
+          <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded absolute top-2 left-2">
+            {video.platform === "youtube" && "📺 유튜브"}
+            {video.platform === "tiktok" && "🎵 틱톡"}
+            {video.platform === "douyin" && "🇨🇳 더우인"}
+          </span>
+        )}
       </div>
 
       {/* 해시태그 */}

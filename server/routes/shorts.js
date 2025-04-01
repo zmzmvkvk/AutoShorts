@@ -1,21 +1,19 @@
-// shorts.js
+// 1번째 줄부터 끝까지 전체코드
 const express = require("express");
 const router = express.Router();
 const {
   fetchMultipleKeywords,
   fetchByChannelId,
 } = require("../services/youtubeService");
-const { db } = require("../firebase/firebaseConfig");
 
 function isValidChannelId(id) {
   return typeof id === "string" && id.startsWith("UC") && id.length >= 24;
 }
 
-// ✅ [키워드 검색]
 router.get("/", async (req, res) => {
   try {
     const query = req.query.query || "";
-    console.log("🪵 요청 받은 키워드:", query);
+    console.log("📥 요청 받은 키워드:", query);
 
     const videos = await fetchMultipleKeywords(query, 6);
     const filtered = videos.filter(
@@ -24,12 +22,11 @@ router.get("/", async (req, res) => {
 
     res.json({ success: true, count: filtered.length, data: filtered });
   } catch (err) {
-    console.error("❌ Shorts API Error:", err.message); // 핵심 에러 찍기
+    console.error("❌ Shorts API Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ✅ [채널 ID 검색]
 router.get("/channel", async (req, res) => {
   try {
     const channelId = req.query.channelId;
@@ -46,7 +43,7 @@ router.get("/channel", async (req, res) => {
 
     res.json({ success: true, count: filtered.length, data: filtered });
   } catch (err) {
-    console.error("❌ 채널 검색 에러:", err);
+    console.error("❌ 채널 검색 에러:", err.message);
     res.status(500).json({ error: "채널 영상 로딩 실패" });
   }
 });
